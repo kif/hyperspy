@@ -271,7 +271,7 @@ class Signal(t.HasTraits, MVA):
         else:
             return None
 
-    def plot(self, axes_manager=None, axvline_data = None):
+    def plot(self, axes_manager=None):
         if self._plot is not None:
                 try:
                     self._plot.close()
@@ -286,7 +286,6 @@ class Signal(t.HasTraits, MVA):
         if axes_manager.signal_dimension == 1:
             # Hyperspectrum
             self._plot = mpl_hse.MPL_HyperSpectrum_Explorer()
-            self._plot.axvline_data = axvline_data
             
         elif axes_manager.signal_dimension == 2:
             self._plot = mpl_hie.MPL_HyperImage_Explorer()
@@ -304,8 +303,50 @@ class Signal(t.HasTraits, MVA):
         if self.axes_manager.navigation_axes:
             self._plot.navigator_data_function = self._get_explorer
         self._plot.plot()
-            
 
+    def add_signal_marker(self, data, style=None, **kwargs): 
+        """Add markers to the signal plot. 
+
+        All the extra keyword arguments are passed to matplotlib's plot 
+        function, enabling customization of the marker. 
+
+		Parameters 
+		----------------- 
+		data : Signal instance containing the data defining the marker 
+		position for all the navigation space. This data has to have the
+		same navigation shape as the current signal. 
+		
+		style : {None, "vline", "hline", "marker"} 
+		Vertical or horizontal line and point marker. If None, the 
+		dimension of the signal space determines the marker type in the 
+		following way: If the signal dimension is 2 a point marker is 
+		placed at the coordinates by the signal value in the Y, X order.
+		If the signal dimension is 1 a vertical line is placed at the 
+		position given by the signal value.
+		
+		"vline" adds a vertical line, "hline" adds a horizontal line and 
+		"marker" adds a point marker. 
+		
+		Returns 
+		----------- 
+		marker_id: int 
+		A number that indentifies the marker and that can be used to 
+		remove the marker using the remove_signal_marker method.
+		
+		See also 
+		------------- 
+		remove_signal_marker, add_navigation_marker 
+        """    
+        if self._plot is None:
+			print "It appears this signal has not yet been plotted. \
+First plot the signal with signal.plot() method, then add markers."
+			return
+        line=self._plot.signal_plot.ax_lines[0]
+        line.vline = line.ax.axvline(
+			data[self._plot.axes_manager.coordinates])
+        line.axvline_data = data
+        line.update()
+        
     def plot_residual(self, axes_manager=None):
         """Plot the residual between original data and reconstructed data
 
