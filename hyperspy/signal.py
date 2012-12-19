@@ -305,7 +305,8 @@ class Signal(t.HasTraits, MVA):
         self._plot.plot()
 
     def add_signal_marker(self, data, style=None, **kwargs): 
-        """Add markers to the signal plot. 
+        """Add markers to an already present signal plot. In the case 
+        that the signal
 
         All the extra keyword arguments are passed to matplotlib's plot 
         function, enabling customization of the marker. 
@@ -324,8 +325,8 @@ class Signal(t.HasTraits, MVA):
 		If the signal dimension is 1 a vertical line is placed at the 
 		position given by the signal value.
 		
-		"vline" adds a vertical line, "hline" adds a horizontal line and 
-		"marker" adds a point marker. 
+		"vline" adds a plt.axvline, "hline" adds a plt.axhline 
+		horizontal line and "marker" adds a plt.scatter point marker. 
 		
 		Returns 
 		----------- 
@@ -337,14 +338,39 @@ class Signal(t.HasTraits, MVA):
 		------------- 
 		remove_signal_marker, add_navigation_marker 
         """    
+        
         if self._plot is None:
-			print "It appears this signal has not yet been plotted. \
-First plot the signal with signal.plot() method, then add markers."
-			return
+            raise ValueError('It appears the signal plot has not yet \
+been produced. First plot the signal with signal.plot() method, then add markers.')
+            return
+            
+        if ((hasattr(data,'axes_manager') is not True) or 
+           ((data.axes_manager.signal_shape == \
+                self.axes_manager.navigation_shape) is not True)):
+            raise ValueError('It appears that the data provided is not \
+a valid signal. Please, provide a signal instance for the marker data.')
+            return
+            
         line=self._plot.signal_plot.ax_lines[0]
-        line.vline = line.ax.axvline(
-			data[self._plot.axes_manager.coordinates])
-        line.axvline_data = data
+        line.marker_data = data.data
+        
+        if style is not None:
+			line.marker_style = style
+        elif data.axes_manager.signal_dimension == 2:
+			line.marker_style = 'marker'
+        elif data.axes_manager.signal_dimension == 1:
+			line.marker_style = 'vline'
+        else:
+			raise ValueError('The marker style could not be determined \
+from the signal instance provided. This is strange.')
+        
+        f=data.data[self._plot.axes_manager.coordinates]
+        if line.marker_style is 'vline':
+			line.marker = line.ax.axvline(f)
+        elif line.marker_style is 'hline':
+			line.marker = line.ax.axhline(f)
+        elif line.marker_style is 'marker':
+			line.marker = line.ax.scatter(f[0],f[1])
         line.update()
         
     def plot_residual(self, axes_manager=None):
