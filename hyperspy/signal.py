@@ -334,12 +334,12 @@ class Signal(t.HasTraits, MVA):
         Returns 
         ----------- 
         marker_id: int 
-        A number that indentifies the marker and that can be used to 
-        remove the marker using the remove_signal_marker method.
+        An object that indentifies the marker and that can be used to 
+        remove the marker using its own remove method. 
 
         See also 
         ------------- 
-        remove_signal_marker, add_navigation_marker 
+        add_navigation_marker 
         """    
         
         if self._plot is None:
@@ -376,6 +376,8 @@ from the signal instance provided.')
         #elif line.marker_style is 'marker':
 		#	line.marker = line.ax.scatter(f[0],f[1])
         line.update()
+        
+        return line.marker
         
     def plot_residual(self, axes_manager=None):
         """Plot the residual between original data and reconstructed data
