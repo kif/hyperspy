@@ -177,8 +177,8 @@ class SpectrumLine():
                 self.marker.set_xdata(g[self.axes_manager.coordinates])
             elif self.marker_style is 'hline':
                 self.marker.set_ydata(g[self.axes_manager.coordinates])
-            elif self.marker_style is 'marker':
-                self.marker.set_ydata(g[self.axes_manager.coordinates])
+            #elif self.marker_style is 'marker':
+            #    self.marker.set_ydata(g[self.axes_manager.coordinates])
  
         
         if self.autoscale is True:

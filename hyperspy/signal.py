@@ -311,35 +311,35 @@ class Signal(t.HasTraits, MVA):
         All the extra keyword arguments are passed to matplotlib's plot 
         function, enabling customization of the marker. 
 
-		Parameters 
-		----------------- 
-		data : Signal instance containing the data defining the marker 
-		position for all the navigation space. This data has to have the
-		same navigation shape as the current signal. 
-		
-		style : {None, "vline", "hline", "marker"} 
-		Vertical or horizontal line and point marker. If None, the 
-		difference between the dimension of the signal space of the data 
-		provided and the navigation space of the signal plot determines 
-		the marker type in the following way: If the difference is 0 
-		(for example, a spectrum line and a 1D signal) a vertical line 
-		is placed at the position given by the signal value. If the 
-		difference is 1 (for example, a spectrum line and an 2D signal) 
-		a point marker is placed at the coordinates by the signal 
-		values. 
-		
-		"vline" adds a plt.axvline, "hline" adds a plt.axhline 
-		horizontal line and "marker" adds a plt.scatter point marker. 
-		
-		Returns 
-		----------- 
-		marker_id: int 
-		A number that indentifies the marker and that can be used to 
-		remove the marker using the remove_signal_marker method.
-		
-		See also 
-		------------- 
-		remove_signal_marker, add_navigation_marker 
+        Parameters 
+        ----------------- 
+        data : Signal instance containing the data defining the marker 
+        position for all the navigation space. This data has to have the
+        same navigation shape as the current signal. 
+
+        style : {None, "vline", "hline", "marker"} 
+        Vertical or horizontal line and point marker. If None, the 
+        difference between the dimension of the signal space of the data 
+        provided and the navigation space of the signal plot determines 
+        the marker type in the following way: If the difference is 0 
+        (for example, a spectrum line and a 1D signal) a vertical line 
+        is placed at the position given by the signal value. If the 
+        difference is 1 (for example, a spectrum line and an 2D signal) 
+        a point marker is placed at the coordinates by the signal 
+        values. 
+
+        "vline" adds a plt.axvline, "hline" adds a plt.axhline 
+        horizontal line and "marker" adds a plt.scatter point marker. 
+
+        Returns 
+        ----------- 
+        marker_id: int 
+        A number that indentifies the marker and that can be used to 
+        remove the marker using the remove_signal_marker method.
+
+        See also 
+        ------------- 
+        remove_signal_marker, add_navigation_marker 
         """    
         
         if self._plot is None:
@@ -360,8 +360,8 @@ a valid signal. Please, provide a signal instance for the marker data.')
         
         if style is not None:
 			line.marker_style = style
-        elif dim_diff == 1:
-			line.marker_style = 'marker'
+        #elif dim_diff == 1:
+		#	line.marker_style = 'marker'
         elif dim_diff == 0:
 			line.marker_style = 'vline'
         else:
@@ -373,8 +373,8 @@ from the signal instance provided.')
 			line.marker = line.ax.axvline(f)
         elif line.marker_style is 'hline':
 			line.marker = line.ax.axhline(f)
-        elif line.marker_style is 'marker':
-			line.marker = line.ax.scatter(f[0],f[1])
+        #elif line.marker_style is 'marker':
+		#	line.marker = line.ax.scatter(f[0],f[1])
         line.update()
         
     def plot_residual(self, axes_manager=None):
