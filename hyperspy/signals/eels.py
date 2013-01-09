@@ -668,10 +668,68 @@ class EELSSpectrum(Spectrum):
             -pl.r.map['values'][...,np.newaxis]))
         return s
         
-
+    def bethe_f_sum(self, nat=50e27):
+        """ Computes Bethe f-sum rule integrals related to the effective
+        valence electron number from the imaginary part of the complex 
+        dielectric function (CDF) or the energy loss function (ELF)
+        following Egerton 2011 (see "Notes").
         
- 
+        If the input EELSSpectrum has complex data the method will 
+        compute neff(CDF), for real data, neff(ELF) will be computed.
         
+        Parameters
+        ----------
+        nat: float
+            Number of atoms (or molecules) per unit volume of the 
+            sample.
+            
+        Returns
+        -------
+        neff: float, EELSSpectrum
+            Signal instance containing the bethe f-sum rule integral for 
+            the CDF or the ELF. It will have the same dimension minus 
+            one of the input CDF EELSSpectra.
+        
+        Notes
+        -----        
+        The expected behavior for near optical transitions (q~0) is that 
+        neff(ELF) (see "Returns" section) remains less than neff(CDF) at
+        low values of energy loss, but the two numbers converge to the 
+        same value at higher energy loss.
+        
+        For details see: Egerton, R. Electron Energy-Loss 
+        Spectroscopy in the Electron Microscope. Springer-Verlag, 2011.
+        """
+        m0 = 9.11e-31   # e- mass in pedestrian units [kg]
+        permi = 8.854e-12     # Vaccum permittivity [F/m]
+        hbar = 1.055e-34     # Reduced Plank constant [J·s]
+        pi      = 3.141592654   # Pie!
+        erre=2*permi*m0/(pi*hbar*hbar*nat);
+        axis = self.axes_manager.signal_axes[0]    
+        dum = axis.scale * erre
+        if self.data.imag.any(): 
+            # nEff(CDF) 
+            print 'cdf'
+            data=(self.data.imag*axis.axis).sum(axis.index_in_array)*dum
+        else:
+            # nEff(ELF)
+            data=(self.data*axis.axis).sum(axis.index_in_array)*dum
+        neff = self._get_navigation_signal()
+        # Prepare return:
+        if neff is None:
+            return data
+        else:
+            neff.data = data
+            neff.mapped_parameters.title = (self.mapped_parameters.title + 
+                ' $n_{Eff}$')
+            if self.tmp_parameters.has_item('filename'):
+                neff.tmp_parameters.filename = (
+                    self.tmp_parameters.filename +
+                    '_Bethe_f-sum')
+                neff.tmp_parameters.folder = self.tmp_parameters.folder
+                neff.tmp_parameters.extension = \
+                    self.tmp_parameters.extension
+        return neff
                         
                       
 #    def build_SI_from_substracted_zl(self,ch, taper_nch = 20):
