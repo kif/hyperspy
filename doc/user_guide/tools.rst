@@ -236,6 +236,10 @@ Deconvolutions
 * :py:meth:`~.signals.eels.EELSSpectrum.fourier_ratio_deconvolution`
 * :py:meth:`~.signals.eels.EELSSpectrum.richardson_lucy_deconvolution`
 
+Kramers-Kronig Analysis
+^^^^^^^^^^^^^^^^^^^^^^^
+
+Use :py:meth:`~signals.eels.EELSSpectrum.kramers_kronig_transform` to calculate the the complex dielectric function from a single scattering distribution (SSD) contained in an EELSSpectrum instance. 
  
 
 

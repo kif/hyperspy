@@ -309,16 +309,18 @@ class EELSSpectrum(Spectrum):
             return {'FWHM' : fwhm,
                      'FWHM_E' : pair_fwhm}
 
-    def fourier_log_deconvolution(self, zlp, add_zlp=True):
+    def fourier_log_deconvolution(self, zlp, add_zlp=True, crop=True):
         """Performs fourier-log deconvolution.
         
         Parameters
         ----------
         zlp : EELSSpectrum
-            The corresponding zero-loss peak. Note that 
-            it must have exactly the same shape as the current spectrum.
+            The corresponding zero-loss peak.
         add_zlp : bool
             If True, adds the ZLP to the deconvolved spectrum
+        crop : bool
+            If True crop the spectrum to leave out the channels that
+             have been modified to decay smoothly to zero at the sides of the spectrum.
         
         Returns
         -------
@@ -331,24 +333,45 @@ class EELSSpectrum(Spectrum):
         
         """
         s = self.deepcopy()
-        s.hanning_taper()
+        tapped_channels = s.hanning_taper()
+        zlp_size = zlp.axes_manager.signal_axes[0].size 
+        self_size = self.axes_manager.signal_axes[0].size
+        # Conservative new size to solve the wrap-around problem 
+        size = zlp_size + self_size -1
+        # Increase to the closest multiple of two to enhance the FFT 
+        # performance
+        size = int(2 ** np.ceil(np.log2(size)))
         axis = self.axes_manager.signal_axes[0]
-        z = np.fft.fft(zlp.data, axis=axis.index_in_array)
-        j = np.fft.fft(s.data, axis=axis.index_in_array)
-        j1 = z*np.log(j/z)
-        s.data = np.fft.ifft(j1, axis=axis.index_in_array).real
+        z = np.fft.rfft(zlp.data, n=size, axis=axis.index_in_array)
+        j = np.fft.rfft(s.data, n=size, axis=axis.index_in_array)
+        j1 = z * np.nan_to_num(np.log(j / z))
+        sdata = np.fft.irfft(j1, axis=axis.index_in_array)
+        s.data = sdata[s.axes_manager._get_data_slice(
+            [(axis.index_in_array, slice(None,self_size)),])]
         if add_zlp is True:
-            s.data += zlp.data
+            if self_size >= zlp_size:
+                s.data[s.axes_manager._get_data_slice(
+                    [(axis.index_in_array, slice(None,zlp_size)),])
+                    ] += zlp.data
+            else:
+                s.data += zlp.data[s.axes_manager._get_data_slice(
+                    [(axis.index_in_array, slice(None,self_size)),])]
+                    
         s.mapped_parameters.title = (s.mapped_parameters.title + 
-            ' after Fourier-log deconvolution')
+                                     ' after Fourier-log deconvolution')
         if s.tmp_parameters.has_item('filename'):
                 s.tmp_parameters.filename = (
                     self.tmp_parameters.filename +
                     '_after_fourier_log_deconvolution')
+        if crop is True:
+            s.crop_in_pixels(axis.index_in_array,
+                             None, -tapped_channels)
         return s
 
     def fourier_ratio_deconvolution(self, ll, fwhm=None,
-                                    threshold=None):
+                                    threshold=None,
+                                    extrapolate_lowloss=True,
+                                    extrapolate_coreloss=True):
         """Performs Fourier-ratio deconvolution.
         
         The core-loss should have the background removed. To reduce
@@ -358,8 +381,7 @@ class EELSSpectrum(Spectrum):
         Parameters
         ----------
         ll: EELSSpectrum
-            The corresponding low-loss (ll) EELSSpectrum. Note that 
-            it must have exactly the same shape as the current spectrum
+            The corresponding low-loss (ll) EELSSpectrum.
             
         fwhm : float or None
             Full-width half-maximum of the Gaussian function by which 
@@ -371,6 +393,8 @@ class EELSSpectrum(Spectrum):
             Truncation energy to estimate the intensity of the 
             elastic scattering. If None the threshold is taken as the
              first minimum after the ZLP centre.
+        extrapolate_lowloss, extrapolate_coreloss : bool
+            If True the signals are extrapolated using a power law,
             
         Notes
         -----        
@@ -378,14 +402,32 @@ class EELSSpectrum(Spectrum):
         Spectroscopy in the Electron Microscope. Springer-Verlag, 2011.
         
         """
+        orig_cl_size = self.axes_manager.signal_axes[0].size
+        if extrapolate_coreloss is True:
+            cl = self.power_law_extrapolation(
+                window_size=20,
+                extrapolation_size=100)
+        else:
+            cl = self.deepcopy()
+            
+        if extrapolate_lowloss is True:
+            ll = ll.power_law_extrapolation(
+                window_size=100,
+                extrapolation_size=100)
+        else:
+            ll = ll.deepcopy()
+        
+        ll.hanning_taper()
+        cl.hanning_taper()
 
-        ll = ll.power_law_extrapolation(
-            window_size=100,
-            extrapolation_size=1024)
-        cl = self.power_law_extrapolation(
-            window_size=20,
-            extrapolation_size=1024)
-
+        ll_size = ll.axes_manager.signal_axes[0].size 
+        cl_size = self.axes_manager.signal_axes[0].size
+        # Conservative new size to solve the wrap-around problem 
+        size = ll_size + cl_size -1
+        # Increase to the closest multiple of two to enhance the FFT 
+        # performance
+        size = int(2 ** np.ceil(np.log2(size)))
+        
         axis = ll.axes_manager.signal_axes[0]
         if fwhm is None:
             fwhm = ll.estimate_FWHM()['FWHM']
@@ -404,26 +446,26 @@ class EELSSpectrum(Spectrum):
         g.sigma.value = fwhm / 2.3548
         g.A.value = 1
         g.centre.value = 0
-        zl = g.function(axis.axis)
-        ll.hanning_taper()
-        cl.hanning_taper()
-        z = np.fft.fft(zl)
-        jk = np.fft.fft(cl.data, axis=axis.index_in_array)
-        jl = np.fft.fft(ll.data, axis=axis.index_in_array)
+        zl = g.function(
+                np.linspace(axis.offset,
+                            axis.offset + axis.scale * (size - 1),
+                            size))
+        z = np.fft.rfft(zl)
+        jk = np.fft.rfft(cl.data, n=size,axis=axis.index_in_array)
+        jl = np.fft.rfft(ll.data, n=size, axis=axis.index_in_array)
         zshape = [1,] * len(cl.data.shape)
-        zshape[axis.index_in_array] = axis.size
-        s = cl.deepcopy()
-        s.data = np.fft.ifft(z.reshape(zshape) * jk / jl,
-                             axis=axis.index_in_array).real
-        s.data *= I0
-        s.crop_in_pixels(-1,None,self.axes_manager.signal_axes[0].size)
-        s.mapped_parameters.title = (self.mapped_parameters.title + 
+        zshape[axis.index_in_array] = jk.shape[axis.index_in_array]
+        cl.data = np.fft.irfft(z.reshape(zshape) * jk / jl,
+                             axis=axis.index_in_array)
+        cl.data *= I0
+        cl.crop_in_pixels(-1,None,orig_cl_size)
+        cl.mapped_parameters.title = (self.mapped_parameters.title + 
             ' after Fourier-ratio deconvolution')
-        if s.tmp_parameters.has_item('filename'):
-                s.tmp_parameters.filename = (
+        if cl.tmp_parameters.has_item('filename'):
+                cl.tmp_parameters.filename = (
                     self.tmp_parameters.filename +
                     'after_fourier_ratio_deconvolution')
-        return s
+        return cl
             
     def richardson_lucy_deconvolution(self,  psf, iterations=15, 
                                       mask=None):
@@ -667,6 +709,143 @@ class EELSSpectrum(Spectrum):
             s.axes_manager.signal_axes[0].axis[np.newaxis,axis.size:]**(
             -pl.r.map['values'][...,np.newaxis]))
         return s
+    
+    def kramers_kronig_transform(self, zlp, iterations=1, n=2):
+        """ Kramers-Kronig Transform method for calculating the complex
+        dielectric function from a single scattering distribution(SSD). 
+        Uses a FFT method explained in the book by Egerton (see Notes).
+        The SSD is an EELSSpectrum instance containing low-loss EELS 
+        only from sigle inelastic scattering event. 
+        
+        That means that, if present, all the elastic scattering, plural 
+        scattering and other spurious effects, would have to be 
+        subtracted/deconvolved or treated in any way whatsoever. 
+        
+        The internal loop is devised to subtract surface to vaccumm 
+        energy loss effects.
+        
+        Parameters
+        ----------
+        zlp: EELSSpectrum
+            Must contain the zero loss peak corresponding to each input
+            SSD. It is used for normalization.
+        iterations: int
+            Number of the iterations for the internal loop. By default, 
+            set = 2.
+        n: float
+            The medium refractive index. Used for normalization of the 
+            SSD to obtain the energy loss function. 
+            
+        Returns
+        -------
+        eps: EELSSpectrum (complex)
+            The complex dielectric function results, 
+                $\epsilon = \epsilon_1 + i*\epsilon_2$,
+            contained in an EELSSpectrum made of complex numbers.
+        Notes
+        -----        
+        For details see: Egerton, R. Electron Energy-Loss 
+        Spectroscopy in the Electron Microscope. Springer-Verlag, 2011.
+        """
+        s = self.deepcopy()
+        
+        # TODO List
+         # n is fixed (must have possibility to be an image, line ...)
+         # Must have some way to assess loop, like returning the mfp?
+         # Add tail correction capabilities (check Egerton code).
+        
+        
+        # Constants and units
+        me 		= 511.06        # Electron rest mass in [eV/c2]
+        m0		= 9.11e-31  	# e- mass in pedestrian units [kg]
+        permi	= 8.854e-12     # Vaccum permittivity [F/m]
+        hbar	= 1.055e-34     # Reduced Plank constant [J·s]
+        c		= 3e8           # The fastest speed there is [m/s]
+        qe		= 1.602e-19     # Electron charge [C]
+        bohr	= 5.292e-2      # bohradius [nm]
+        pi      = 3.141592654   # Pie!
+        
+        # Mapped params
+        e0   = s.mapped_parameters.TEM.beam_energy 
+        beta = s.mapped_parameters.TEM.EELS.collection_angle
+        axis = s.axes_manager.signal_axes[0]
+        epc = axis.scale
+        s_size = axis.size
+        zlp_size = zlp.axes_manager.signal_axes[0].size 
+        axisE = axis.axis
+        
+        # ZLP_removal_tool: Zero Loss Intensity
+        i0 = zlp.data.sum(axis.index_in_array)
+        i0 = i0.reshape(
+                np.insert(i0.shape, axis.index_in_array, 1))
+        
+        slicer = s.axes_manager._get_data_slice(
+                [(axis.index_in_array,slice(None,s_size)),])
+        
+        # Kinetic definitions
+        t   = e0*(1+e0/2/me)/(1+e0/me)**2
+        tgt = e0*(2*me+e0)/(me+e0)
+        rk0 = 2590*(1+e0/me)*np.sqrt(2*t/me)
+        
+        for io in range(iterations):
+            # Calculation of the ELF by normalization of the SSD
+            # Norm(SSD) = Imag(-1/epsilon) (Energy Loss Funtion, ELF)
+            I = s.data.sum(axis.index_in_array)
+            Im = s.data / (np.log(1+(beta*tgt/axisE)**2))
+            K = (Im[slicer]/(axisE+1e-3)).sum(axis.index_in_array)
+            K = (K/(pi/2)/(1-1/n**2)*epc).reshape(
+                    np.insert(K.shape, axis.index_in_array, 1))
+            Im = Im/K
+            # Thickness (and mean free path additionally)
+            te = 332.5*K*t/(i0*epc)
+            #mfp = te/(i/i0)
+
+            # Kramers Kronig Transform:
+            #  We calculate KKT(Im(-1/epsilon))=1+Re(1/epsilon) with FFT
+            #  Follows: D W Johnson 1975 J. Phys. A: Math. Gen. 8 490
+            q = np.fft.fft(Im, 2*s_size, axis.index_in_array)
+            q = -2 * np.imag(q) / (2*s_size)   
+            q[slicer] = -q[slicer]        
+            q = np.fft.fft(q, axis=axis.index_in_array)
+            # Final touch, we have Re(1/eps)
+            Re=np.real(q[slicer])
+            Re += 1
+        
+            # Egerton does this, but we'll skip
+            #Re=real(q)
+            #Tail correction
+             #vm=Re[s_size-1]
+             #Re[:(s_size-1)]=Re[:(s_size-1)]+1-(0.5*vm*((s_size-1) / (s_size*2-arange(0,s_size-1)))**2)
+             #Re[s_size:]=1+(0.5*vm*((s_size-1) / (s_size+arange(0,s_size)))**2)
+            
+            # Epsilon appears:
+            #  We calculate the real and imaginary parts of the CDF
+            e1 = Re / (Re**2+Im**2)
+            e2 = Im / (Re**2+Im**2)
+            
+            # Surface losses correction:
+            #  Calculates the surface ELF from a vaccumm border effect
+            #  A simulated surface plasmon is subtracted from the ELF
+            
+            Srfelf = 4*e2 / ((e1+1)**2+e2**2) - Im
+            adep = tgt / (axisE+0.5) * np.arctan(beta * tgt / axisE) - \
+                    beta/1000 / (beta**2+axisE**2/tgt**2)
+            Srfint = np.zeros(s.data.shape)
+            Srfint=2000*K*adep*Srfelf/rk0/te
+            s.data=self.data-Srfint
+            print 'Iteration number: ', io+1, '/', iterations
+                
+        eps = self.deepcopy()
+        eps.data = e1 + 1j*e2
+        
+        eps.mapped_parameters.title = (s.mapped_parameters.title + 
+                                         ' Complex Dielectric Fuction')
+        if eps.tmp_parameters.has_item('filename'):
+                eps.tmp_parameters.filename = (
+                    self.tmp_parameters.filename +
+                    '_CDF_after_Kramers_Kronig_transform')
+        
+        return eps
         
     def bethe_f_sum(self, nat=50e27):
         """ Computes Bethe f-sum rule integrals related to the effective
