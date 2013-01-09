@@ -709,7 +709,6 @@ class EELSSpectrum(Spectrum):
         dum = axis.scale * erre
         if self.data.imag.any(): 
             # nEff(CDF) 
-            print 'cdf'
             data=(self.data.imag*axis.axis).sum(axis.index_in_array)*dum
         else:
             # nEff(ELF)
