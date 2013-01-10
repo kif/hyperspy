@@ -710,7 +710,7 @@ class EELSSpectrum(Spectrum):
             -pl.r.map['values'][...,np.newaxis]))
         return s
     
-    def kramers_kronig_transform(self, zlp, iterations=1, n=2):
+    def kramers_kronig_transform(self, zlp=None, iterations=1, n=2):
         """ Kramers-Kronig Transform method for calculating the complex
         dielectric function from a single scattering distribution(SSD). 
         Uses a FFT method explained in the book by Egerton (see Notes).
@@ -726,9 +726,12 @@ class EELSSpectrum(Spectrum):
         
         Parameters
         ----------
-        zlp: EELSSpectrum
-            Must contain the zero loss peak corresponding to each input
-            SSD. It is used for normalization.
+        zlp: {None, float, EELSSpectrum}
+            Used for normalization, the EELSSpectrum instance must 
+            contain the zero loss peak corresponding to each input
+            SSD. If float, this single number will be used as zlp 
+            integral in every case. Finally, if None, zlp integral will 
+            not be used for normalization. 
         iterations: int
             Number of the iterations for the internal loop. By default, 
             set = 2.
@@ -771,14 +774,28 @@ class EELSSpectrum(Spectrum):
         axis = s.axes_manager.signal_axes[0]
         epc = axis.scale
         s_size = axis.size
-        zlp_size = zlp.axes_manager.signal_axes[0].size 
         axisE = axis.axis
         
-        # ZLP_removal_tool: Zero Loss Intensity
-        i0 = zlp.data.sum(axis.index_in_array)
-        i0 = i0.reshape(
-                np.insert(i0.shape, axis.index_in_array, 1))
-        
+        # Zero Loss Intensity
+        if zlp is None:
+            i0 = self._get_navigation_signal().data
+            i0 += 1
+            i0 = i0.reshape(
+                    np.insert(i0.shape, axis.index_in_array, 1))
+        elif isinstance(zlp, float):
+            i0 = self._get_navigation_signal().data
+            i0 = i0 + zlp
+            i0 = i0.reshape(
+                    np.insert(i0.shape, axis.index_in_array, 1))
+        elif isinstance(zlp, hyperspy.signals.EELSSpectrum):
+            i0 = zlp.data.sum(axis.index_in_array)
+            i0 = i0.reshape(
+                    np.insert(i0.shape, axis.index_in_array, 1))
+        else: 
+            print 'Zero loss peak input not recognized'
+            return
+            
+        # Slicer to get the signal data from 0 to s_size
         slicer = s.axes_manager._get_data_slice(
                 [(axis.index_in_array,slice(None,s_size)),])
         
@@ -804,11 +821,11 @@ class EELSSpectrum(Spectrum):
             #  We calculate KKT(Im(-1/epsilon))=1+Re(1/epsilon) with FFT
             #  Follows: D W Johnson 1975 J. Phys. A: Math. Gen. 8 490
             q = np.fft.fft(Im, 2*s_size, axis.index_in_array)
-            q = -2 * np.imag(q) / (2*s_size)   
+            q = - q.imag / (s_size)   
             q[slicer] = -q[slicer]        
             q = np.fft.fft(q, axis=axis.index_in_array)
             # Final touch, we have Re(1/eps)
-            Re=np.real(q[slicer])
+            Re=q[slicer].real
             Re += 1
         
             # Egerton does this, but we'll skip
