@@ -26,12 +26,12 @@ from hyperspy.components import VolumePlasmonDrude, Lorentzian
 
 class Test1D:
     def setUp(self):
-        ''' To test the kramers_kronig_transform we need two 
+        """ To test the kramers_kronig_transform we need two 
         EELSSpectrum instances. One will be the Drude bulk plasmon peak
         the other a synthetic fake-ZLP.
-        '''
+        """
         # Create an empty spectrum
-        s = EELSSpectrum({'data' : np.zeros((32,1024))})
+        s = EELSSpectrum({'data' : np.zeros((32,2048))})
         s.set_microscope_parameters(
                     beam_energy=300.0,
                     convergence_angle=14.0,
@@ -66,14 +66,41 @@ class Test1D:
         self.signal = {'ELF': s, 'ZLP': z}
         
     def test_01(self):
-        ''' The kramers kronig transform method applied to the signal we
+        """ The kramers kronig transform method applied to the signal we
         have just designed above will return the CDF for the Drude bulk
         plasmon. Hopefully, we recover the signal by inverting the CDF.
-        '''
+        """
         items = self.signal
         elf = items['ELF']
         zlp = items['ZLP']
-        eps=elf.kramers_kronig_transform(zlp)
-        np.allclose(np.imag(-1/eps.data),elf.data,rtol=1)
+        cdf=elf.kramers_kronig_transform(zlp)
+        assert_true(np.allclose(np.imag(-1/cdf.data),elf.data,rtol=1))
+        
+    def test_02a(self):
+        """ After obtaining the CDF from KKA of the input Drude model, 
+        we can calculate the two Bethe f-sum rule integrals: one for 
+        imag(CDF) and other for imag(-1/CDF).
+        
+        First condition: neff(imag(-1/CDF)) and neff(imag(CDF)) should 
+        have close values (nearly equal at higher energies).
+        """
+        items = self.signal
+        elf = items['ELF']
+        zlp = items['ZLP']
+        cdf = elf.kramers_kronig_transform(zlp)
+        neff1 = elf.bethe_f_sum()
+        neff2 = cdf.bethe_f_sum()
+        assert_true(np.allclose(neff1.data,neff2.data,rtol = 0.2))
+        
+    def test_02b(self):
+        """ Second condition: neff1 should remain less than neff2.
+        """
+        items = self.signal
+        elf = items['ELF']
+        zlp = items['ZLP']
+        cdf = elf.kramers_kronig_transform(zlp)
+        neff1 = elf.bethe_f_sum()
+        neff2 = cdf.bethe_f_sum()
+        assert_true(np.alltrue((neff2.data-neff1.data) > 0))
         
         
