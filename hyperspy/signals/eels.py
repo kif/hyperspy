@@ -905,10 +905,12 @@ class EELSSpectrum(Spectrum):
         dum = axis.scale * erre
         if self.data.imag.any(): 
             # nEff(CDF) 
-            data=(self.data.imag*axis.axis).sum(axis.index_in_array)*dum
+            data=np.trapz(self.data.imag*axis.axis, 
+                                axis=axis.index_in_array)*dum
         else:
             # nEff(ELF)
-            data=(self.data*axis.axis).sum(axis.index_in_array)*dum
+            data=np.trapz(self.data*axis.axis, 
+                                axis=axis.index_in_array)*dum
         neff = self._get_navigation_signal()
         # Prepare return:
         if neff is None:
