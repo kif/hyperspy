@@ -812,7 +812,7 @@ class EELSSpectrum(Spectrum):
             K = (Im[slicer]/(axisE+1e-3)).sum(axis.index_in_array)
             K = (K/(pi/2)/(1-1/n**2)*epc).reshape(
                     np.insert(K.shape, axis.index_in_array, 1))
-            Im = Im/K
+            Im = (Im/K).astype('float32')
             # Thickness (and mean free path additionally)
             te = 332.5*K*t/(i0*epc)
             #mfp = te/(i/i0)
@@ -820,12 +820,12 @@ class EELSSpectrum(Spectrum):
             # Kramers Kronig Transform:
             #  We calculate KKT(Im(-1/epsilon))=1+Re(1/epsilon) with FFT
             #  Follows: D W Johnson 1975 J. Phys. A: Math. Gen. 8 490
-            q = np.fft.fft(Im, 2*s_size, axis.index_in_array)
+            q = np.fft.fft(Im, 2*s_size, axis.index_in_array).astype('complex64')
             q = - q.imag / s_size
             q[slicer] = -q[slicer]        
-            q = np.fft.fft(q, axis=axis.index_in_array)
+            q = np.fft.fft(q, axis=axis.index_in_array).astype('complex64')
             # Final touch, we have Re(1/eps)
-            Re=q[slicer].real
+            Re=q[slicer].real.astype('float32')
             Re += 1
         
             # Egerton does this, but we'll skip
@@ -853,7 +853,7 @@ class EELSSpectrum(Spectrum):
             print 'Iteration number: ', io+1, '/', iterations
                 
         eps = self.deepcopy()
-        eps.data = e1 + 1j*e2
+        eps.data = (e1 + 1j*e2).astype('complex64')
         
         eps.mapped_parameters.title = (s.mapped_parameters.title + 
                                          ' Complex Dielectric Fuction')
