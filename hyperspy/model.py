@@ -1233,7 +1233,10 @@ class Model(list):
                 temp_component['element'] = component.element
                 temp_component['subshell'] = component.subshell
                 temp_component['name'] = component.name
-                component_list.append(temp_component)
+            else:
+                temp_component['_id_name'] = component._id_name
+
+            component_list.append(temp_component)
 
 #            component_dict = {}
 #            component_dict['name'] = component.__dict__['name']
@@ -1302,9 +1305,12 @@ class Model(list):
 
         for _component in model_dict['components']: 
             comp_object = getattr(components, _component['_id_name'])
-            component = comp_object(
-                    _component['element'] + '_' + _component['subshell'],
-                    GOS=_component['GOS'])
+            if _component['_id_name'] == 'EELSCLEdge':
+                component = comp_object(
+                        _component['element'] + '_' + _component['subshell'],
+                        GOS=_component['GOS'])
+            else:
+                component = comp_object()
             model.append(component)
         return(model)
 
