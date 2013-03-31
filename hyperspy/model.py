@@ -46,6 +46,7 @@ from hyperspy.exceptions import WrongObjectError
 from hyperspy.decorators import interactive_range_selector
 from hyperspy.misc.mpfit.mpfit import mpfit
 from hyperspy.axes import AxesManager
+from hyperspy import components
 from hyperspy.drawing.widgets import (DraggableVerticalLine,
                                       DraggableLabel)
 
@@ -1227,34 +1228,89 @@ class Model(list):
         m.get_model_as_dict(filename="model_data.npz")
         """
 
-        axis = self.axes_manager.signal_axes[0].axis
-        model_dict = {}
-        component_list_dict = {}
+        #Components
+        component_list = []
         for component in self:
-            component_dict = {}
-            component_dict['name'] = component.__dict__['name']
-            component_dict['type'] = component.__dict__['_id_name']
-            parameter_list_dict = {}
-            for parameter in component.__dict__['parameters']:
-                parameter_dict = {}
-                parameter_dict['name'] = parameter.__dict__['name']
-                parameter_dict['map'] = parameter.__dict__['map']
-                parameter_list_dict[parameter.__dict__['name']] = parameter_dict
-            component_dict['parameters'] = parameter_list_dict
-            component_dict['component_spectrum'] = self.generate_spectrum_from_components([component,]).data
+            temp_component = {}
+            if component._id_name == 'EELSCLEdge':
+                temp_component['_id_name'] = 'EELSCLEdge'
+                temp_component['GOS'] = component.GOS._name
+                temp_component['element'] = component.element
+                temp_component['subshell'] = component.subshell
+                temp_component['name'] = component.name
+                component_list.append(temp_component)
 
-            component_list_dict[component_dict['name'] + component_dict['type']] = component_dict
+#            component_dict = {}
+#            component_dict['name'] = component.__dict__['name']
+#            component_dict['type'] = component.__dict__['_id_name']
+#            parameter_list_dict = {}
+#            for parameter in component.__dict__['parameters']:
+#                parameter_dict = {}
+#                parameter_dict['name'] = parameter.__dict__['name']
+#                parameter_dict['map'] = parameter.__dict__['map']
+#                parameter_list_dict[parameter.__dict__['name']] = parameter_dict
+#            component_dict['parameters'] = parameter_list_dict
+#            component_dict['component_spectrum'] = self.generate_spectrum_from_components([component,]).data
+#            component_list_dict[component_dict['name'] + component_dict['type']] = component_dict
+#        self.generate_data_from_model()
+#        model_data = self.model_cube 
 
-        model_dict['components'] = component_list_dict
+        #Navigation axes
+        navigation_axes = []
+        for navigation_axis in self.axes_manager.navigation_axes:
+            temp_axis = {}
+            temp_axis['scale'] = navigation_axis.scale
+            temp_axis['offset'] = navigation_axis.offset
+            temp_axis['units'] = navigation_axis.units
+            navigation_axes.append(temp_axis)
+
+        #Signal axes
+        signal_axes = []
+        for signal_axis in self.axes_manager.signal_axes:
+            temp_axis = {}
+            temp_axis['scale'] = signal_axis.scale
+            temp_axis['offset'] = signal_axis.offset
+            temp_axis['units'] = signal_axis.units
+            signal_axes.append(temp_axis)
+
+
+        model_dict = {}
+        model_dict['components'] = component_list
         model_dict['spectrum'] = self.spectrum.data
-        model_dict['model_spectrum'] = self.generate_spectrum_from_components().data
-        model_dict['navigational_axis'] = self.axes_manager.navigation_axes[0].axis
-        model_dict['navigational_axis_units'] = self.axes_manager.navigation_axes[0].units
-        model_dict['signal_axis'] = self.axes_manager.signal_axes[0].axis
-        model_dict['signal_axis_units'] = self.axes_manager.signal_axes[0].units
-
+#        model_dict['model_spectrum'] = model_data 
+        model_dict['navigation_axes'] = navigation_axes 
+        model_dict['signal_axes'] = signal_axes
 
         if filename is None:
             return(model_dict)
         else:
             np.savez(filename, model_dict=model_dict)
+
+    def create_model_from_dict(self, model_dict):
+        spectrum = Spectrum({'data':model_dict['spectrum']})
+
+        #Navigation axes
+        s_nav_axes = spectrum.axes_manager.navigation_axes
+        for s_nav_axis, navigation_axis in zip(s_nav_axes, model_dict['navigation_axes']):
+            s_nav_axis.scale = navigation_axis['scale']
+            s_nav_axis.offset = navigation_axis['offset']
+            s_nav_axis.units = navigation_axis['units']
+
+        #Signal axes
+        s_sig_axes = spectrum.axes_manager.signal_axes
+        for s_sig_axis, signal_axis in zip(s_sig_axes, model_dict['signal_axes']):
+            s_sig_axis.scale = signal_axis['scale']
+            s_sig_axis.offset = signal_axis['offset']
+            s_sig_axis.units = signal_axis['units']
+
+        model = Model(spectrum)        
+
+        for _component in model_dict['components']: 
+            comp_object = getattr(components, _component['_id_name'])
+            component = comp_object(
+                    _component['element'] + '_' + _component['subshell'],
+                    GOS=_component['GOS'])
+            model.append(component)
+        return(model)
+
+
