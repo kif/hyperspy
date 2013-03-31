@@ -22,6 +22,7 @@ import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
 import traits.api as t
+from scipy.ndimage.filters import gaussian_filter1d
 
 from hyperspy.signal import Signal
 from hyperspy.misc import progressbar
@@ -65,7 +66,7 @@ class Spectrum(Signal):
         axis : -1
         
         """
-        axis = self._get_positive_axis_index_index(axis)
+        axis = self.axes_manager._get_positive_index(axis)
         data = self.data
         for pixel in indices:
             data[(slice(None),)*axis + (pixel, Ellipsis)] = \
@@ -91,7 +92,7 @@ class Spectrum(Signal):
             
         """
 
-        axis = self._get_positive_axis_index_index(axis)
+        axis = self.axes_manager._get_positive_index(axis)
         coord = self.axes_manager.axes[axis]
         offset = coord.offset
         _axis = coord.axis.copy()
@@ -493,21 +494,45 @@ class Spectrum(Signal):
             pbar.finish()
             self.peaks=self.peaks[:trim_id,:,:,:]
 
-    def to_image(self):
+    def to_image(self, signal_to_index=0):
+        """Spectrum to image
+
+        Parameters
+        ----------
+        signal_to_index : integer
+            Position to move the signal axis.        
+            
+        Examples
+        --------        
+        >>> s = signals.Spectrum({'data' : np.ones((3,4,5,6))})
+        >>> s
+        <Spectrum, title: , dimensions: (3L, 4L, 5L, 6L)>
+
+        >>> s.to_image()
+        <Image, title: , dimensions: (6L, 3L, 4L, 5L)>
+
+        >>> s.to_image(1)
+        <Image, title: , dimensions: (3L, 6L, 4L, 5L)>
+        
+        """
         from hyperspy.signals.image import Image
         dic = self._get_signal_dict()
         dic['mapped_parameters']['record_by'] = 'image'
-        dic['data'] = np.rollaxis(dic['data'], -1, 0)
-        dic['axes'] = utils_varia.rollelem(dic['axes'],-1,0)
+        dic['data'] = np.rollaxis(dic['data'], -1, signal_to_index)
+        dic['axes'] = utils_varia.rollelem(dic['axes'],-1,signal_to_index)
         i = 0
         for axis in dic['axes']:
             axis['index_in_array'] = i
             i += 1
         im = Image(dic)
+        
         if hasattr(self, 'learning_results'):
-            im.learning_results = copy.deepcopy(self.learning_results)
-            im.learning_results._transpose_results()
-            im.learning_results.original_shape = self.data.shape
+            if signal_to_index != 0 and self.learning_results.loadings is not None:
+                print("The learning results won't be transfered correctly")
+            else :
+                im.learning_results = copy.deepcopy(self.learning_results)
+                im.learning_results._transpose_results()
+                im.learning_results.original_shape = self.data.shape
 
         im.tmp_parameters = self.tmp_parameters.deepcopy()
         return im
@@ -635,6 +660,32 @@ class Spectrum(Signal):
     def crop_spectrum(self, left_value = None, right_value = None,):
         iaxis = self.axes_manager.signal_axes[0].index_in_array
         self.crop_in_units(axis=iaxis, x1=left_value, x2=right_value)
+        
+    @auto_replot    
+    def gaussian_filter(self, FWHM):
+        """Applies a Gaussian filter in the spectral dimension.
+        
+        Parameters
+        ----------
+        FWHM : float
+            The Full Width at Half Maximum of the gaussian in the 
+            spectral axis units 
+            
+        Raises
+        ------
+        ValueError if FWHM is equal or less than zero.
+            
+        
+        """
+        if FWHM <= 0:
+            raise ValueError(
+                "FWHM must be greater than zero")
+        axis = self.axes_manager.signal_axes[0]
+        FWHM *= 1/axis.scale
+        self.data = gaussian_filter1d(
+            self.data,
+            axis=axis.index_in_array, 
+            sigma=FWHM/2.35482)
     
     @auto_replot
     def hanning_taper(self, side='both', channels=None, offset=0):
