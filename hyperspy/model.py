@@ -1235,6 +1235,7 @@ class Model(list):
                 temp_component['name'] = component.name
             else:
                 temp_component['_id_name'] = component._id_name
+                temp_component['name'] = component.name
 
             component_list.append(temp_component)
 
@@ -1275,43 +1276,16 @@ class Model(list):
         model_dict = {}
         model_dict['components'] = component_list
         model_dict['spectrum'] = self.spectrum.data
+        model_dict['spectrum_type'] = str(self.spectrum.__class__)
+        if str(self.spectrum.__class__) == "<class 'hyperspy.signals.eels.EELSSpectrum'>":
+            temp_dict = self.spectrum.mapped_parameters.as_dictionary()
+            model_dict['spectrum_mapped_parameters'] = temp_dict
 #        model_dict['model_spectrum'] = model_data 
         model_dict['navigation_axes'] = navigation_axes 
         model_dict['signal_axes'] = signal_axes
+        model_dict['model_type'] = str(self.__class__)
 
         if filename is None:
             return(model_dict)
         else:
             np.savez(filename, model_dict=model_dict)
-
-    def create_model_from_dict(self, model_dict):
-        spectrum = Spectrum({'data':model_dict['spectrum']})
-
-        #Navigation axes
-        s_nav_axes = spectrum.axes_manager.navigation_axes
-        for s_nav_axis, navigation_axis in zip(s_nav_axes, model_dict['navigation_axes']):
-            s_nav_axis.scale = navigation_axis['scale']
-            s_nav_axis.offset = navigation_axis['offset']
-            s_nav_axis.units = navigation_axis['units']
-
-        #Signal axes
-        s_sig_axes = spectrum.axes_manager.signal_axes
-        for s_sig_axis, signal_axis in zip(s_sig_axes, model_dict['signal_axes']):
-            s_sig_axis.scale = signal_axis['scale']
-            s_sig_axis.offset = signal_axis['offset']
-            s_sig_axis.units = signal_axis['units']
-
-        model = Model(spectrum)        
-
-        for _component in model_dict['components']: 
-            comp_object = getattr(components, _component['_id_name'])
-            if _component['_id_name'] == 'EELSCLEdge':
-                component = comp_object(
-                        _component['element'] + '_' + _component['subshell'],
-                        GOS=_component['GOS'])
-            else:
-                component = comp_object()
-            model.append(component)
-        return(model)
-
-
