@@ -1797,49 +1797,41 @@ def plot_parameter_report(
     else:
         figure.savefig(filename)
 
-def _parameter_difference_subplot(subplot, component1, component2,
+def _parameter_difference_subplot(subplot, component_list,
         parameter_name, y_axis=None):
     """Plots the difference between a specific parameter in two components.
 
     Parameters
     ----------
     subplot : a matplotlib subplot object
-    component1 : hyperspy component object
-    component2 : hyperspy component object 
+    component_list : list of hyperspy component object
     parameter_name : string
         Name of the parameter whos difference will be plotted.
     y_axis : list of numbers, optional
         Scaling for the y-axis
 
     """
+    parameter_list = []
+    for _component in component_list:
+        for _parameter in _component.parameters:
+            if _parameter.name == parameter_name:
+                parameter_list.append(_parameter)
 
-    parameter1, parameter2 = None, None
-    for _parameter in component1.parameters:
-        if _parameter.name == parameter_name:
-            parameter1 = _parameter
-    for _parameter in component2.parameters:
-        if _parameter.name == parameter_name:
-            parameter2 = _parameter
-
-    if (parameter1 is None) or (parameter2 is None): 
-        raise Exception(
-                "The parameter_name " + parameter_name + 
-                " was not found in both components")
-
-    parameter_difference = parameter1.map['values'] - parameter2.map['values']
-
-    subplot_label = component1.name + "," + component2.name + "," +\
-    parameter_name + "," + "difference"
-
-    _plot_cascade_parameter(
-            parameter_difference,
-            subplot,
-            y_axis=y_axis)
-    subplot.set_title(subplot_label)
+    for _i1, (_par1, _com1) in enumerate(zip(parameter_list,component_list)):
+        for _i2, (_par2, _com2) in enumerate(zip(parameter_list[_i1+1:],component_list[_i1+1:])):
+            _plot_cascade_parameter(
+                    _par1.map['values']-_par2.map['values'],
+                    subplot,
+                    plot_label=_com1.name + "-" + _com2.name,
+                    color=color_list[(1+_i1)*(1+_i2)],
+                    y_axis=y_axis)
+    box = subplot.get_position()
+    subplot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    subplot.legend(loc='center left', bbox_to_anchor=(1, 0.5))
     subplot.grid(True)
 
-def plot_parameter_difference(component1, component2, parameter_name,
-        y_axis=None, title='', filename=None):
+def plot_parameter_difference(component_list, parameter_name,
+        navigation_axis=None, title='', filename=None):
     """Plots the difference between a specific parameter in two components.
     Useful in plotting changes in fine structure. For example if one uses
     Gaussians to fit the different whitelines in an EELS-spectrum, and wants to
@@ -1848,11 +1840,10 @@ def plot_parameter_difference(component1, component2, parameter_name,
 
     Parameters
     ----------
-    component1 : hyperspy component object
-    component2 : hyperspy component object 
+    component_list : list of hyperspy component object
     parameter_name : string
         Name of the parameter whos difference will be plotted.
-    y_axis : list of numbers, optional
+    navigation_axis : list of numbers, optional
         Scaling for the y-axis
     title : string, optinal
         Title of the figure
@@ -1867,7 +1858,10 @@ def plot_parameter_difference(component1, component2, parameter_name,
     >>> v1 = components.Voigt()
     >>> v2 = components.Voigt()
     >>> m.extend([v1,v2])
-    >>> utils.plot_parameter_difference(v1, v2, 'centre')
+    >>> utils.plot_parameter_difference([v1, v2], 'centre')
+    >>> utils.plot_parameter_difference([v1, v2], 'centre',
+        navigation_axis=m.axes_manager.navigation_axes[0].axis,
+        title="v1 and v2",filename="v1_and_v2.png")
 
     See also
     ---------
@@ -1878,8 +1872,8 @@ def plot_parameter_difference(component1, component2, parameter_name,
     figure = plt.figure()
     subplot = figure.add_subplot(111)
 
-    _parameter_difference_subplot(subplot, component1, component2,
-        parameter_name, y_axis=y_axis)
+    _parameter_difference_subplot(subplot, component_list,
+        parameter_name, y_axis=navigation_axis)
     figure.suptitle(title)
 
     if filename == None:
@@ -1923,12 +1917,13 @@ def _parameter_normalized_subplot(subplot, component_list, parameter_name,
                 plot_label=_component.name,
                 color=color_list[_index],
                 y_axis=navigation_axis)
-        subplot.set_title(parameter_name)
-        subplot.legend()
-        subplot.grid(True)
+    box = subplot.get_position()
+    subplot.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    subplot.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    subplot.grid(True)
 
-def plot_normalized_parameter(component_list, parameter_name, title='',
-        filename=None):
+def plot_normalized_parameter(component_list, parameter_name,
+        navigation_axis=None, title='', filename=None):
     """Plots the normalized values of a list of specific parameters in components.
     Useful in plotting changes in fine structure. For example if one uses
     Gaussians to fit the different whitelines in an EELS-spectrum, and wants to
@@ -1939,6 +1934,10 @@ def plot_normalized_parameter(component_list, parameter_name, title='',
     component_list : a list of hyperspy component objects
     parameter_name : string
         name of the parameter which is to be plotted
+    navigation_axis : list of numbers, optional
+        If list of numbers, the component positions will be based on the list
+        of numbers. The list must be of the same length as the length of the
+        components. 
     title : string, optional
         title of the matplotlib figure
     filename : None or string, optional 
@@ -1955,9 +1954,9 @@ def plot_normalized_parameter(component_list, parameter_name, title='',
     >>> m.append(v1)
     >>> m.append(v2)
     >>> utils.plot_normalized_parameter([v1, v2], 'area')
-
     >>> utils.plot_normalized_parameter([v1, v2], 'area', 
-    >>> title="v1 and v2",filename="v1_and_v2.png")
+        navigation_axis=m.axes_manager.navigation_axes[0].axis,
+        title="v1 and v2",filename="v1_and_v2.png")
 
     See also
     --------
@@ -1968,7 +1967,8 @@ def plot_normalized_parameter(component_list, parameter_name, title='',
     figure = plt.figure()
     subplot = figure.add_subplot(111)
 
-    _parameter_normalized_subplot(subplot, component_list, parameter_name)
+    _parameter_normalized_subplot(subplot, component_list, parameter_name,
+            navigation_axis=navigation_axis)
     figure.suptitle(title)
     
     if filename == None:
