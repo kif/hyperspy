@@ -1653,20 +1653,20 @@ def _plot_cascade_parameter(
     """Plots an array in a matplotlib subplot.
     Especially suited to plot parameter arrays
 
-    Parameters:
-    -----------
-    parameter_values: 1-D array
+    Parameters
+    ----------
+    parameter_values : 1-D array
         The values to be plotted.
-    subplot: matplotlib subplot
+    subplot : matplotlib subplot
         Commonly refered to as ax.
-    plot_label: string
+    plot_label : string
         Sets the name for the plot legend.
-    color: string
+    color : string
         Sets the color of the plot.
 
-    Example:
+    Examples
     --------
-    _plot_cascade_parameter(gaussian_component.area.map['values'], ax)
+    >>> _plot_cascade_parameter(gaussian_component.area.map['values'], ax)
     """
     
     if y_axis == None:
@@ -1718,31 +1718,31 @@ def plot_parameter_report(
         filename=None):
     """Plots parameters of one or several components in a cascade fashion.
 
-    Parameters:
+    Parameters :
     -----------
-    component_list: list of components
+    component_list : list of components
         A list of the components which parameters will be plotted.
         If parameter_plot_list is None only the parameters who's name is
         is present in the first component will be plotted.
         For example: if the first parameter is a gaussian component, only the
         parameters: area, centre and sigma will be plotted.
-    parameter_plot_list: None or list of strings
+    parameter_plot_list : None or list of strings
         If None will use the parameter list of the first component.
         If list of strings, will plot the parameters with the same names as the
         ones found in the list of strings.
-    title: String
+    title : String
         Title of the whole figure.
-    navigation_axis: None or list of numbers
+    navigation_axis : None or list of numbers
         If None, will use the index of the value to scale the y-axis.
         If list of numbers, has to the be same length as the size of the
         component.
-    filename:
+    filename :
         If None, the function will return the figure.
         If String, will save the figure as filename
 
-    Example:
+    Examples
     --------
-    >>>> plot_parameter_report(
+    >>> plot_parameter_report(
             [gaussian1, gaussian2],
             parameter_plot_list=["area","sigma"],
             navigation_axis=model.axes_manager.navigation_axes[0].axis,
@@ -1783,14 +1783,14 @@ def _parameter_difference_subplot(subplot, component1, component2,
         parameter_name, y_axis=None):
     """Plots the difference between a specific parameter in two components.
 
-    Parameters:
-    -----------
-    subplot: a matplotlib subplot object
-    component1: hyperspy component object
-    component2: hyperspy component object 
-    parameter_name: string
+    Parameters
+    ----------
+    subplot : a matplotlib subplot object
+    component1 : hyperspy component object
+    component2 : hyperspy component object 
+    parameter_name : string
         Name of the parameter whos difference will be plotted.
-    y_axis: list of numbers, optional
+    y_axis : list of numbers, optional
         Scaling for the y-axis
 
     """
@@ -1828,33 +1828,32 @@ def plot_parameter_difference(component1, component2, parameter_name,
     see how the relative positions of the centre parameter in the Gaussians 
     change over a line scan.
 
-    Parameters:
-    -----------
-    component1: hyperspy component object
-    component2: hyperspy component object 
-    parameter_name: string
+    Parameters
+    ----------
+    component1 : hyperspy component object
+    component2 : hyperspy component object 
+    parameter_name : string
         Name of the parameter whos difference will be plotted.
-    y_axis: list of numbers, optional
+    y_axis : list of numbers, optional
         Scaling for the y-axis
-    title: string, optinal
+    title : string, optinal
         Title of the figure
-    filename: None or string, optional 
+    filename : None or string, optional 
         If None, will return a matplotlib figure object
         If String, will save the figure as a file
 
-    Example:
+    Examples
     --------
-    s = load("some_spectrum")
-    m = create_model(s)
-    v1 = components.Voigt()
-    v2 = components.Voigt()
-    m.append(v1)
-    m.append(v2)
-    utils.plot_parameter_difference(v1, v2, 'centre')
+    >>> s = load("some_spectrum")
+    >>> m = create_model(s)
+    >>> v1 = components.Voigt()
+    >>> v2 = components.Voigt()
+    >>> m.extend([v1,v2])
+    >>> utils.plot_parameter_difference(v1, v2, 'centre')
 
-    See also:
+    See also
     ---------
-    utils.plot_normalized_parameter
+    plot_normalized_parameter
 
     """
 
@@ -1874,16 +1873,16 @@ def _parameter_normalized_subplot(subplot, component_list, parameter_name,
         navigation_axis=None): 
     """Plots the normalized values of a list of specific parameters in components.
 
-    Parameters:
-    -----------
-    subplot: matplotlib subplot object
-    component_list: a list of hyperspy component objects
-    parameter_name: string
+    Parameters
+    ----------
+    subplot : matplotlib subplot object
+    component_list : a list of hyperspy component objects
+    parameter_name : string
         name of the parameter which is to be plotted
 
-    See also:
-    ---------
-    utils.plot_normalized_parameter
+    See also
+    --------
+    plot_normalized_parameter
 
     """
     parameter_list = []
@@ -1917,32 +1916,34 @@ def plot_normalized_parameter(component_list, parameter_name, title='',
     Gaussians to fit the different whitelines in an EELS-spectrum, and wants to
     see how the area parameter in the Gaussians change over a line scan.
 
-    Parameters:
-    -----------
-    component_list: a list of hyperspy component objects
-    parameter_name: string
+    Parameters
+    ----------
+    component_list : a list of hyperspy component objects
+    parameter_name : string
         name of the parameter which is to be plotted
-    title: string, optional
+    title : string, optional
         title of the matplotlib figure
-    filename: None or string, optional 
+    filename : None or string, optional 
         If None, will return a matplotlib figure object
         If String, will save the figure as a file
 
-    Example:
-    s = load("some_spectrum")
-    m = create_model(s)
-    v1 = components.Voigt()
-    v2 = components.Voigt()
-    m.append(v1)
-    m.append(v2)
-    utils.plot_normalized_parameter([v1, v2], 'area')
+    Examples
+    --------
 
-    utils.plot_normalized_parameter([v1, v2], 'area', 
-    title="v1 and v2",filename="v1_and_v2.png")
+    >>> s = load("some_spectrum")
+    >>> m = create_model(s)
+    >>> v1 = components.Voigt()
+    >>> v2 = components.Voigt()
+    >>> m.append(v1)
+    >>> m.append(v2)
+    >>> utils.plot_normalized_parameter([v1, v2], 'area')
 
-    See also:
-    ---------
-    utils.plot_parameter_difference 
+    >>> utils.plot_normalized_parameter([v1, v2], 'area', 
+    >>> title="v1 and v2",filename="v1_and_v2.png")
+
+    See also
+    --------
+    plot_parameter_difference 
 
     """
 
