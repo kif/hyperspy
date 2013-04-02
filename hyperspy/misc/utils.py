@@ -1707,7 +1707,6 @@ def _plot_multiple_parameters(
         title='',
         navigation_axis=None):
 
-
     if parameter_plot_list == None:
         parameter_plot_list = []
         for parameter in component_list[0].parameters:
@@ -1723,9 +1722,11 @@ def _plot_multiple_parameters(
                             plot_label=component.name,
                             color=color_list[component_index],
                             y_axis=navigation_axis)
-                    ax.set_title(parameter_name)
-                    ax.legend()
-                    ax.grid(True)
+        ax.set_title(parameter_name)
+        ax.grid(True)
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
+    ax.legend(loc='center left', bbox_to_anchor=(1, 0.5))
 
 def plot_parameter_report(
         component_list,
