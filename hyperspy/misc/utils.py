@@ -1659,7 +1659,10 @@ def homogenize_ndim(*args):
     return [ary.reshape((1,) * (max_len - len(ary.shape)) + ary.shape)
             for ary in args]
                     
-    
-    
-    
-
+def compare_integrated_area(y_data, x_data, position1, position2, position3):
+    i1 = np.where(x_data==position1)[0][0]
+    i2 = np.where(x_data==position2)[0][0]
+    i3 = np.where(x_data==position3)[0][0]
+    area1 = np.trapz(y_data[i1:i2], x_data[i1:i2])
+    area2 = np.trapz(y_data[i2:i3], x_data[i2:i3])
+    return(area1, area2)
