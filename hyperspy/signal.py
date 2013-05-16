@@ -901,7 +901,7 @@ class Signal1DTools(object):
                                                 peakgroup=peakgroup,
                                                 subchannel=subchannel)
         return peaks
-def add_signal_marker(self, data, style=None, **kwargs): 
+    def add_signal_marker(self, data, style=None, **kwargs): 
         """Add markers to an already present signal plot. In the case 
         that the signal
 
