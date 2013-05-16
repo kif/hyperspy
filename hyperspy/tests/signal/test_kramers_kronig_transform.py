@@ -101,6 +101,6 @@ class Test1D:
         cdf = elf.kramers_kronig_transform(zlp)
         neff1 = elf.bethe_f_sum()
         neff2 = cdf.bethe_f_sum()
-        assert_true(np.alltrue((neff2.data-neff1.data) > 0))
+        assert_true(np.alltrue((neff2.data-neff1.data) >= 0))
         
         
