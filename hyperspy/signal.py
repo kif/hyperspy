@@ -901,6 +901,7 @@ class Signal1DTools(object):
                                                 peakgroup=peakgroup,
                                                 subchannel=subchannel)
         return peaks
+        
     def add_signal_marker(self, data, style=None, **kwargs): 
         """Add markers to an already present signal plot. In the case 
         that the signal
@@ -956,22 +957,22 @@ a valid signal. Please, provide a signal instance for the marker data.')
                   self.axes_manager.navigation_dimension
         
         if style is not None:
-			line.marker_style = style
+            line.marker_style = style
         #elif dim_diff == 1:
-		#	line.marker_style = 'marker'
+        #    line.marker_style = 'marker'
         elif dim_diff == 0:
-			line.marker_style = 'vline'
+            line.marker_style = 'vline'
         else:
-			raise ValueError('The marker style could not be determined \
+            raise ValueError('The marker style could not be determined \
 from the signal instance provided.')
         
         f=data.data[self._plot.axes_manager.coordinates]
         if line.marker_style is 'vline':
-			line.marker = line.ax.axvline(f)
+            line.marker = line.ax.axvline(f)
         elif line.marker_style is 'hline':
-			line.marker = line.ax.axhline(f)
+            line.marker = line.ax.axhline(f)
         #elif line.marker_style is 'marker':
-		#	line.marker = line.ax.scatter(f[0],f[1])
+        # line.marker = line.ax.scatter(f[0],f[1])
         line.update()
         return line.marker     
    
