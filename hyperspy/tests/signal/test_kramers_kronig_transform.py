@@ -31,7 +31,7 @@ class Test1D:
         the other a synthetic fake-ZLP.
         """
         # Create an empty spectrum
-        s = EELSSpectrum({'data' : np.zeros((32,2048))})
+        s = EELSSpectrum(np.zeros((32,2048)))
         s.set_microscope_parameters(
                     beam_energy=300.0,
                     convergence_angle=14.0,
