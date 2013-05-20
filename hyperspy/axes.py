@@ -408,7 +408,7 @@ class AxesManager(t.HasTraits):
         return axis
         
     def _array_indices_generator(self):
-        shape = (self.navigation_shape if self.navigation_size > 0 else
+        shape = (self.navigation_shape[::-1] if self.navigation_size > 0 else
                  [1,])
         return np.ndindex(*shape)
         
@@ -475,7 +475,7 @@ class AxesManager(t.HasTraits):
             slice.
             
         """
-        cslice = [slice,] * len(self._axes)
+        cslice = [slice(None),] * len(self._axes)
         if fill is not None:
             for index, slice_ in fill:
                 cslice[index] = slice_
