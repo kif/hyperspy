@@ -730,3 +730,36 @@ class Component(object):
                 
         for _parameter in parameter_list:
             _parameter.free = False
+
+    def component_as_signal(self, out_of_range_to_nan=True):
+        """Returns a recreation of the dataset using the component,
+        the spectral range that is not fitted is filled with nans.
+        The component has to be a part of a model to be used with this 
+        function.
+        
+        Parameters
+        ----------
+        out_of_range_to_nan : bool
+            If True the spectral range that is not fitted is filled with nans.
+            
+        Returns
+        -------
+        spectrum : An instance of the same class as `spectrum`.
+
+        Example
+        -------
+        >>>> s = signals.Spectrum(np.random.random((10,100)))
+        >>>> m = create_model(s)
+        >>>> l1 = components.Lorentzian()
+        >>>> l2 = components.Lorentzian()
+        >>>> m.append(l1)
+        >>>> m.append(l2)
+        >>>> s1 = l1.component_as_signal()
+    
+        """
+      
+        spectrum = self.model.as_signal(
+            component_list=[self],
+            out_of_range_to_nan=out_of_range_to_nan)
+        return spectrum
+
